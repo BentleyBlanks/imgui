@@ -3,6 +3,7 @@
 
 #include <imgui.h>
 #include "imgui_impl_glfw.h"
+#include "imgui_dock.h"
 #include <stdio.h>
 #include <GLFW/glfw3.h>
 
@@ -70,6 +71,32 @@ int main(int, char**)
             ImGui::SetNextWindowPos(ImVec2(650, 20), ImGuiSetCond_FirstUseEver);
             ImGui::ShowTestWindow(&show_test_window);
         }
+
+        // 4. Demonstrate dockable tabs
+        ImGui::SetNextWindowSize(ImVec2(400, 500), ImGuiSetCond_FirstUseEver);
+        if(ImGui::Begin("Dock Demo"))
+        {
+            ImGui::BeginDockspace();
+            if(ImGui::BeginDock("Dock 1"))
+            {
+                ImGui::Text("This was a triumph...");
+            }
+            ImGui::EndDock();
+
+            if(ImGui::BeginDock("Dock 2"))
+            {
+                ImGui::Text("I'm making a note here: huge success!");
+            }
+            ImGui::EndDock();
+
+            if(ImGui::BeginDock("Dock 3"))
+            {
+                ImGui::Text("The cake is great!");
+            }
+            ImGui::EndDock();
+            ImGui::EndDockspace();
+        }
+        ImGui::End();
 
         // Rendering
         int display_w, display_h;

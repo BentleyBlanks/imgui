@@ -12,7 +12,7 @@
 
 EXE = opengl_example
 OBJS = main.o imgui_impl_glfw.o
-OBJS += ../../imgui.o ../../imgui_demo.o ../../imgui_draw.o
+OBJS += ../../imgui.o ../../imgui_demo.o ../../imgui_draw.o ../../imgui_dock.o
 
 UNAME_S := $(shell uname -s)
 
