@@ -43,7 +43,7 @@ struct DockContext
 			, status(Status_Float)
 			, label(nullptr)
 			, opened(false)
-        
+
 		{
 			location[0] = 0;
 			children[0] = children[1] = nullptr;
@@ -73,7 +73,7 @@ struct DockContext
 			for (Dock* tmp = prev_tab; tmp; tmp = tmp->prev_tab) tmp->parent = dock;
 			for (Dock* tmp = next_tab; tmp; tmp = tmp->next_tab) tmp->parent = dock;
 		}
-        
+
         Dock& getRoot()
         {
             Dock *dock = this;
@@ -203,12 +203,14 @@ struct DockContext
     ImVec2 m_workspace_pos;
     ImVec2 m_workspace_size;
     ImGuiDockSlot m_next_dock_slot;
+    float m_next_dock_percentage;
 
     DockContext()
         : m_current(nullptr)
         , m_next_parent(nullptr)
         , m_last_frame(0)
         , m_next_dock_slot(ImGuiDockSlot_Tab)
+        , m_next_dock_percentage(0.5f)
     {
     }
 
@@ -269,7 +271,7 @@ struct DockContext
 		m_last_frame = GetFrameCount();
 
 		putInBackground();
-        
+
 		for (int i = 0; i < m_docks.size(); ++i) {
 			Dock& dock = *m_docks[i];
             if (!dock.parent && (dock.status == Status_Docked)) {
@@ -288,12 +290,12 @@ struct DockContext
 
 			PushID(i);
 			if (!IsMouseDown(0)) dock.status = Status_Docked;
-            
+
             ImVec2 pos0 = dock.children[0]->pos;
             ImVec2 pos1 = dock.children[1]->pos;
             ImVec2 size0 = dock.children[0]->size;
             ImVec2 size1 = dock.children[1]->size;
-            
+
             ImGuiMouseCursor cursor;
 
 			ImVec2 dsize(0, 0);
@@ -339,7 +341,7 @@ struct DockContext
             if (IsItemHovered()) {
                 SetMouseCursor(cursor);
             }
-            
+
 			if (IsItemHovered() && IsMouseClicked(0))
 			{
 				dock.status = Status_Dragged;
@@ -392,9 +394,9 @@ struct DockContext
 	}
 
 
-	static ImRect getDockedRect(const ImRect& rect, ImGuiDockSlot dock_slot)
+	static ImRect getDockedRect(const ImRect& rect, ImGuiDockSlot dock_slot, float percent=0.5f)
 	{
-		ImVec2 half_size = rect.GetSize() * 0.5f;
+        ImVec2 half_size = rect.GetSize() * percent;
 		switch (dock_slot)
 		{
 			default: return rect;
@@ -739,7 +741,7 @@ struct DockContext
 	}
 
 
-	static void setDockPosSize(Dock& dest, Dock& dock, ImGuiDockSlot dock_slot, Dock& container)
+	static void setDockPosSize(Dock& dest, Dock& dock, ImGuiDockSlot dock_slot, Dock& container, float percentage=0.5f)
 	{
 		IM_ASSERT(!dock.prev_tab && !dock.next_tab && !dock.children[0] && !dock.children[1]);
 
@@ -748,26 +750,28 @@ struct DockContext
 		dock.pos = container.pos;
 		dock.size = container.size;
 
+        float destPercentage = 1 - percentage;
+
 		switch (dock_slot)
 		{
 			case ImGuiDockSlot_Bottom:
-				dest.size.y *= 0.5f;
-				dock.size.y *= 0.5f;
+            	dest.size.y *= destPercentage;
+            	dock.size.y *= percentage;
 				dock.pos.y += dest.size.y;
 				break;
 			case ImGuiDockSlot_Right:
-				dest.size.x *= 0.5f;
-				dock.size.x *= 0.5f;
+            	dest.size.x *= destPercentage;
+            	dock.size.x *= percentage;
 				dock.pos.x += dest.size.x;
 				break;
 			case ImGuiDockSlot_Left:
-				dest.size.x *= 0.5f;
-				dock.size.x *= 0.5f;
+            	dest.size.x *= destPercentage;
+            	dock.size.x *= percentage;
 				dest.pos.x += dock.size.x;
 				break;
 			case ImGuiDockSlot_Top:
-				dest.size.y *= 0.5f;
-				dock.size.y *= 0.5f;
+            	dest.size.y *= destPercentage;
+            	dock.size.y *= percentage;
 				dest.pos.y += dock.size.y;
 				break;
 			default: IM_ASSERT(false); break;
@@ -784,7 +788,7 @@ struct DockContext
 	}
 
 
-	void doDock(Dock& dock, Dock* dest, ImGuiDockSlot dock_slot)
+	void doDock(Dock& dock, Dock* dest, ImGuiDockSlot dock_slot, float percentage=0.5f)
 	{
 		IM_ASSERT(!dock.parent);
 		if (!dest)
@@ -842,7 +846,7 @@ struct DockContext
 			dock.parent = container;
 			dock.status = Status_Docked;
 
-			setDockPosSize(*dest, dock, dock_slot, *container);
+            setDockPosSize(*dest, dock, dock_slot, *container, percentage);
 		}
 		dock.setActive();
 	}
@@ -901,7 +905,7 @@ struct DockContext
 	{
 		if (dock.status == Status_Docked) return;
 		if (dock.location[0] == 0) return;
-		
+
 		Dock* tmp = getRootDock();
 		if (!tmp) return;
 
@@ -950,15 +954,15 @@ struct DockContext
 		dock.opened = true;
 
 		checkNonexistent();
-        
+
         if (first || (prev_opened != dock.opened)) {
             Dock* root = m_next_parent ? m_next_parent : getRootDock();
             if (root && (&dock != root) && !dock.parent) {
-                doDock(dock, root, next_slot);
+                doDock(dock, root, next_slot , m_next_dock_percentage);
             }
             m_next_parent = &dock;
         }
-        
+
 		m_current = &dock;
 		if (dock.status == Status_Dragged) handleDrag(dock);
 
@@ -993,7 +997,7 @@ struct DockContext
         //beginPanel();
 
 		m_end_action = EndAction_EndChild;
-        
+
         splits();
 
 		PushStyleColor(ImGuiCol_Border, ImVec4(0, 0, 0, 0));
@@ -1015,7 +1019,7 @@ struct DockContext
 								 extra_flags;
 		bool ret = BeginChild(label, size, true, flags);
 		PopStyleColor();
-        
+
 		return ret;
 	}
 
@@ -1042,10 +1046,10 @@ struct DockContext
     void debugWindow() {
         //SetNextWindowSize(ImVec2(300, 300));
         if (Begin("Dock Debug Info")) {
-            for (int i = 0; i < m_docks.size(); ++i) {
-                if (TreeNode((void*)i, "Dock %d (%p)", i, m_docks[i])) {
-                    Dock &dock = *m_docks[i];
-                    Text("pos=(%.1f %.1f) size=(%.1f %.1f)", 
+            for (size_t i = 0; i < m_docks.size(); ++i) {
+                if (TreeNode((void*)i, "Dock %d (%p)", (int)i, m_docks[(int)i])) {
+                    Dock &dock = *m_docks[(int)i];
+                    Text("pos=(%.1f %.1f) size=(%.1f %.1f)",
                         dock.pos.x, dock.pos.y,
                         dock.size.x, dock.size.y);
                     Text("parent = %p\n",
@@ -1054,16 +1058,16 @@ struct DockContext
                         dock.isContainer()?"true":"false");
                     Text("status = %s\n",
                         (dock.status == Status_Docked)?"Docked":
-                            ((dock.status == Status_Dragged)?"Dragged": 
+                            ((dock.status == Status_Dragged)?"Dragged":
                                 ((dock.status == Status_Float)?"Float": "?")));
                     TreePop();
-                }            
+                }
             }
-            
+
         }
         End();
     }
-    
+
 	int getDockIndex(Dock* dock)
 	{
 		if (!dock) return -1;
@@ -1092,8 +1096,10 @@ void ImGui::ShutdownDock()
 	g_dock.m_docks.clear();
 }
 
-void ImGui::SetNextDock(ImGuiDockSlot slot) {
+//percent 0 to 1
+void ImGui::SetNextDock(ImGuiDockSlot slot, float percent) {
     g_dock.m_next_dock_slot = slot;
+    g_dock.m_next_dock_percentage = percent;
 }
 
 void ImGui::BeginDockspace() {
